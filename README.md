@@ -10,3 +10,7 @@ Where used a default https://github.com/wodby/docker4drupal here.
 3. Go to docker dir via terminal - `cd docker/`
 4. Raise a new build  - `docker-compose up -d`
 5. Copy setting file to the project - `cp docker/settings.php ../drupal/web/sites/default/settings.php` 
+
+# Users
+
+The site has a user *admin* with the same password as the current integration sites.
