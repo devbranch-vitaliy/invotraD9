@@ -780,3 +780,13 @@ $databases['default']['default'] = array (
   'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
   'driver' => 'mysql',
 );
+$databases['default']['invotra'] = array (
+  'database' => 'invotra',
+  'username' => 'drupal',
+  'password' => 'invdb',
+  'prefix' => '',
+  'host' => 'mariadb_d7',
+  'port' => '3306',
+  'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
+  'driver' => 'mysql',
+);

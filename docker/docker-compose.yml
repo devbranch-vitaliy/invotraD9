@@ -14,6 +14,20 @@ services:
       - ./mariadb-init/Drupal9:/docker-entrypoint-initdb.d # Place init .sql file(s) here.
 #      - /path/to/mariadb/data/on/host:/var/lib/mysql # Use bind mount
 
+  mariadb_d7:
+    image: wodby/mariadb:$MARIADB_TAG
+    container_name: "${DB_CONTAINER_NAME}_mariadb"
+    stop_grace_period: 30s
+    environment:
+      MYSQL_ROOT_PASSWORD: $DB_ROOT_PASSWORD
+      MYSQL_DATABASE: $DB_D7_NAME
+      MYSQL_USER: $DB_D7_USER
+      MYSQL_PASSWORD: $DB_D7_PASSWORD
+      MYSQL_PORT: $DB_D7_PORT
+    volumes:
+      - ./mariadb-init/Drupal7:/docker-entrypoint-initdb.d # Place init .sql file(s) here.
+  #      - /path/to/mariadb/data/on/host:/var/lib/mysql # Use bind mount
+
   php:
     image: wodby/drupal-php:$PHP_TAG
     container_name: "${PROJECT_NAME}_php"
@@ -139,16 +153,27 @@ services:
 #    container_name: "${PROJECT_NAME}_redis"
 #    image: wodby/redis:$REDIS_TAG
 
-#  adminer:
-#    container_name: "${PROJECT_NAME}_adminer"
-#    image: wodby/adminer:$ADMINER_TAG
-#    environment:
-#      # For PostgreSQL:
-#      #      ADMINER_DEFAULT_DB_DRIVER: pgsql
-#      ADMINER_DEFAULT_DB_HOST: $DB_HOST
-#      ADMINER_DEFAULT_DB_NAME: $DB_NAME
-#    labels:
-#    - "traefik.http.routers.${PROJECT_NAME}_adminer.rule=Host(`adminer.${PROJECT_BASE_URL}`)"
+  adminer:
+    container_name: "${PROJECT_NAME}_adminer"
+    image: wodby/adminer:$ADMINER_TAG
+    environment:
+      # For PostgreSQL:
+      #      ADMINER_DEFAULT_DB_DRIVER: pgsql
+      ADMINER_DEFAULT_DB_HOST: $DB_HOST
+      ADMINER_DEFAULT_DB_NAME: $DB_NAME
+    labels:
+    - "traefik.http.routers.${PROJECT_NAME}_adminer.rule=Host(`adminer.${PROJECT_BASE_URL}`)"
+
+  adminer_d7:
+    container_name: "${DB_CONTAINER_NAME}_adminer"
+    image: wodby/adminer:$ADMINER_TAG
+    environment:
+      # For PostgreSQL:
+      #      ADMINER_DEFAULT_DB_DRIVER: pgsql
+      ADMINER_DEFAULT_DB_HOST: $DB_D7_HOST
+      ADMINER_DEFAULT_DB_NAME: $DB_D7_NAME
+    labels:
+      - "traefik.http.routers.${DB_CONTAINER_NAME}_adminer.rule=Host(`adminer_d7.${PROJECT_BASE_URL}`)"
 
 #  pma:
 #    image: phpmyadmin/phpmyadmin
