@@ -11,7 +11,7 @@ services:
       MYSQL_USER: $DB_USER
       MYSQL_PASSWORD: $DB_PASSWORD
     volumes:
-      - ./mariadb-init:/docker-entrypoint-initdb.d # Place init .sql file(s) here.
+      - ./mariadb-init/Drupal9:/docker-entrypoint-initdb.d # Place init .sql file(s) here.
 #      - /path/to/mariadb/data/on/host:/var/lib/mysql # Use bind mount
 
   php:
@@ -45,7 +45,8 @@ services:
 #      MINK_DRIVER_ARGS_WEBDRIVER: '["chrome", {"browserName":"chrome","goog:chromeOptions":{"args":["--disable-gpu","--headless"]}}, "http://chrome:9515"]'
     volumes:
     - ../drupal/:/var/www/html:cached
-    - ./mariadb-init:/docker-entrypoint-init.d
+    - ./mariadb-init/Drupal9:/docker-entrypoint-init.d
+    - ./templates:$DRUPAL_TEMPLATES
   ## Alternative for macOS users: Mutagen https://wodby.com/docs/stacks/drupal/local#docker-for-mac
 #    - drupal:/var/www/html
 ## For XHProf and Xdebug profiler traces
