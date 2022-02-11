@@ -47,6 +47,7 @@ module:
   webform: 0
   webform_migrate: 0
   webform_node: 0
+  webform_ui: 0
   views: 10
   standard: 1000
 theme:
