@@ -3,7 +3,7 @@
 /.vscode/
 
 # Ignore DB backups
-/docker/mariadb-init/*/*.sql
+/docker/mariadb-init/**/*.sql
 
 # Ignore project notes
 /notes/
