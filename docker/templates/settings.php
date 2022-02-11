@@ -780,7 +780,7 @@ $databases['default']['default'] = array (
   'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
   'driver' => 'mysql',
 );
-$databases['migrate']['default'] = array (
+$databases['drupal_7']['default'] = array (
   'database' => 'invotra',
   'username' => 'drupal',
   'password' => 'invdb',
