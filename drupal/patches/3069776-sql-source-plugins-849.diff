@@ -1,8 +1,8 @@
 diff --git a/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php b/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php
-index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c5ed040d5 100644
+index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..eb2c55803b14f45523e8760407df5b8d67f24988 100644
 --- a/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php
 +++ b/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php
-@@ -31,6 +31,76 @@
+@@ -31,6 +31,103 @@
   *   joined. Using expressions in the query may result in column aliases in the
   *   JOIN clause which would be invalid SQL. If you run into this, set
   *   ignore_map to TRUE.
@@ -18,6 +18,12 @@ index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c
 + *   and join type (optional, defaults to INNER). Defaults to an empty array.
 + *   For more documentation refer to
 + *   \Drupal\Core\Database\Query\SelectInterface::addJoin().
++ * - fields: (optional) Add extra fields to the query. This is useful when using
++ *   'joins' - we can retrieve an extra migration source from the joined table.
++ *   This should be in array format with each array item providing values for
++ *   table_alias, field, alias (optional, defaults to NULL). Defaults to an
++ *   empty array. For more documentation refer to
++ *   \Drupal\Core\Database\Query\SelectInterface::addField().
 + * - distinct: (optional) Sets the source plugin query to be DISTINCT if set to
 + *   TRUE. If set to FALSE, the distinct flag will be disabled.
 + *
@@ -76,16 +82,37 @@ index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c
 + * In this example users of certain roles are retrieved from the source
 + * database. The distinct is required to remove duplicate records, because each
 + * user can have multiple roles.
++ *
++ * @code
++ * source:
++ *   plugin: d7_user
++ *   joins:
++ *     -
++ *       table: foo
++ *       alias: f
++ *       type: LEFT
++ *       condition: u.uid = f.uid
++ *   fields:
++ *     -
++ *       table_alias: f
++ *       field: bar
++ *       alias: my_bar
++ * @endcode
++ *
++ * In this example adds an extra user field 'bar'. The 'bar' field values are
++ * located in another custom database table 'foo', which should be joined
++ * against base table (users). This will provide a new source of migration
++ * 'my_bar'.
   *
   * For other optional configuration keys inherited from the parent class, refer
   * to \Drupal\migrate\Plugin\migrate\source\SourcePluginBase.
-@@ -110,6 +180,25 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
+@@ -110,6 +207,30 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
    public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, StateInterface $state) {
      parent::__construct($configuration, $plugin_id, $plugin_definition, $migration);
      $this->state = $state;
 +
 +    // Validate 'conditions' and 'joins' configuration keys.
-+    foreach (['conditions', 'joins'] as $config_key) {
++    foreach (['conditions', 'joins', 'fields'] as $config_key) {
 +      $this->configuration[$config_key] = $this->configuration[$config_key] ?? [];
 +
 +      if (!is_array($this->configuration[$config_key])) {
@@ -102,12 +129,17 @@ index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c
 +        throw new \InvalidArgumentException("Each 'joins' array item must be an array including table, alias, condition, and type (optional) keys.");
 +      }
 +    }
++    foreach ($this->configuration['fields'] as $field) {
++      if (!is_array($field) || !isset($field['table_alias']) || !isset($field['field'])) {
++        throw new \InvalidArgumentException("Each 'fields' array item must be an array including table_alias, field, alias (optional) keys.");
++      }
++    }
    }
- 
+
    /**
-@@ -233,10 +322,10 @@ protected function select($table, $alias = NULL, array $options = []) {
+@@ -233,10 +354,10 @@ protected function select($table, $alias = NULL, array $options = []) {
    }
- 
+
    /**
 -   * Adds tags and metadata to the query.
 +   * Adds tags, metadata, and configured conditions and joins to the query.
@@ -118,10 +150,10 @@ index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c
     */
    protected function prepareQuery() {
      $this->query = clone $this->query();
-@@ -244,6 +333,21 @@ protected function prepareQuery() {
+@@ -244,6 +365,26 @@ protected function prepareQuery() {
      $this->query->addTag('migrate_' . $this->migration->id());
      $this->query->addMetaData('migration', $this->migration);
- 
+
 +    // Add any configured conditions.
 +    foreach ($this->configuration['conditions'] as $condition) {
 +      $this->query->condition($condition['field'], $condition['value'] ?? NULL, $condition['operator'] ?? '=');
@@ -132,6 +164,11 @@ index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c
 +      $this->query->addJoin($join['type'] ?? 'INNER', $join['table'], $join['alias'], $join['condition']);
 +    }
 +
++    // Add any configured joins.
++    foreach ($this->configuration['fields'] as $field) {
++      $this->query->addField($field['table_alias'], $field['field'], $field['alias'] ?? NULL);
++    }
++
 +    // Add distinct, if configured.
 +    if (isset($this->configuration['distinct'])) {
 +      $this->query->distinct((bool) $this->configuration['distinct']);
@@ -139,24 +176,24 @@ index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..1a0d431917bdd95fa2574734ea26378c
 +
      return $this->query;
    }
- 
-@@ -388,7 +492,7 @@ abstract public function query();
+
+@@ -388,7 +529,7 @@ abstract public function query();
     * Gets the source count using countQuery().
     */
    protected function doCount() {
 -    return (int) $this->query()->countQuery()->execute()->fetchField();
 +    return (int) $this->prepareQuery()->countQuery()->execute()->fetchField();
    }
- 
+
    /**
 diff --git a/core/modules/migrate/tests/src/Unit/SqlBaseTest.php b/core/modules/migrate/tests/src/Unit/SqlBaseTest.php
 index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825eccd54002c 100644
 --- a/core/modules/migrate/tests/src/Unit/SqlBaseTest.php
 +++ b/core/modules/migrate/tests/src/Unit/SqlBaseTest.php
 @@ -7,6 +7,7 @@
- 
+
  namespace Drupal\Tests\migrate\Unit;
- 
+
 +use Drupal\Core\State\StateInterface;
  use Drupal\migrate\Plugin\MigrationInterface;
  use Drupal\migrate\Plugin\migrate\source\SqlBase;
@@ -164,7 +201,7 @@ index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825ec
 @@ -18,6 +19,71 @@
   */
  class SqlBaseTest extends UnitTestCase {
- 
+
 +  /**
 +   * The default configuration array.
 +   *
@@ -236,7 +273,7 @@ index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825ec
 @@ -61,14 +127,19 @@ public function testMapJoinable($expected_result, $id_map_is_sql, $with_id_map,
        ->method('getDatabase')
        ->willReturn($id_map_connection);
- 
+
 +    // Setup the State object.
 +    $state = $this->getMockBuilder(StateInterface::class)
 +      ->disableOriginalConstructor()
@@ -248,17 +285,17 @@ index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825ec
 +    $migration->expects($this->atLeastOnce())
        ->method('getIdMap')
        ->willReturn($id_map_is_sql ? $sql : NULL);
- 
+
      // Create our SqlBase test class.
 -    $sql_base = new TestSqlBase();
 +    $sql_base = new TestSqlBase($this->configuration, $this->pluginId, $this->pluginDefinition, $migration, $state);
      $sql_base->setMigration($migration);
      $sql_base->setDatabase($source_connection);
- 
+
 @@ -140,6 +211,101 @@ public function sqlBaseTestProvider() {
      ];
    }
- 
+
 +  /**
 +   * Test prepare query for valid condition.
 +   *
@@ -355,11 +392,11 @@ index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825ec
 +  }
 +
  }
- 
+
  /**
 @@ -162,9 +328,11 @@ class TestSqlBase extends SqlBase {
    protected $ids;
- 
+
    /**
 -   * Override the constructor so we can create one easily.
 +   * {@inheritdoc}
@@ -368,7 +405,7 @@ index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825ec
 +  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, StateInterface $state) {
 +    parent::__construct($configuration, $plugin_id, $plugin_definition, $migration, $state);
 +  }
- 
+
    /**
     * Allows us to set the database during tests.
 diff --git a/core/modules/migrate_drupal/tests/src/Kernel/d6/FieldDiscoveryTest.php b/core/modules/migrate_drupal/tests/src/Kernel/d6/FieldDiscoveryTest.php
@@ -380,7 +417,7 @@ index 7085fa7239e5eb4738a1e93b2ad701d8fb64f9d5..4d3f34d8bb1088e9ee9884cc30b32544
        foreach ($fields as $field_name => $field_info) {
          $this->assertArrayHasKey('type', $field_info);
 -        $this->assertCount(22, $field_info);
-+        $this->assertCount(24, $field_info);
++        $this->assertCount(25, $field_info);
          $this->assertEquals($bundle, $field_info['type_name']);
        }
      }
