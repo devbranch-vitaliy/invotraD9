@@ -6,9 +6,8 @@ Where used a default https://github.com/wodby/docker4drupal here.
 
 # Databases
 
-Download and extract DBs from the google drive folder:
+Download and extract DBs from the [google drive folder](https://drive.google.com/drive/u/3/folders/1YpVoqmws_FX-86Q6SEiP1kcN0WjYpQ7l)
 
-https://drive.google.com/drive/u/3/folders/1YpVoqmws_FX-86Q6SEiP1kcN0WjYpQ7l
 Databases:
 * invotraD7.sql - Drupal 7 site
 * invotraD9-empty.sql - DB snap of the empty Drupal 9 site (without migrated data). Uses to check migration process.
@@ -16,7 +15,7 @@ Databases:
 
 # Steps to raise a build
 
-## To check the migration process
+## To check the [migration process](#migrate-data)
 1. Go to the project directory via terminal
 2. Copy D9 DB backup to the docker/mariadb-init/Drupal9 dir - 
   `cp {path to the DB}/invotraD9-empty.sql docker/mariadb-init/Drupal9/`
@@ -36,7 +35,7 @@ Databases:
 
 # Users
 
-The site has a user *admin* with the same password as the current integration sites.
+The site has a user _admin_ with the same password as the current integration sites.
 
 # Migration
 ## Modules
