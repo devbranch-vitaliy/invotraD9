@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 defaults:
   run:
-    working-directory: drupal
+    working-directory: ./drupal
 
 jobs:
   pr_changes:
