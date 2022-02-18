@@ -1,0 +1,89 @@
+name: Code review
+
+on:
+  pull_request:
+    branches: [ main ]
+defaults:
+  run:
+    working-directory: drupal
+
+jobs:
+  pr_changes:
+    name: Prepare phpcs.xml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Get changed files of the PR
+        id: files
+        uses: Ana06/get-changed-files@v2.0.0
+        with:
+          format: 'csv'
+
+      - name: Prepare phpcs.xml
+        id: phpcs
+        run: |
+          mapfile -d ',' -t added_modified_files < <(printf '%s,' '${{ steps.files.outputs.added_modified }}')
+          echo '<?xml version="1.0" encoding="UTF-8"?>' >> phpcs.xml
+          echo '<ruleset name="drupal">' >> phpcs.xml
+          echo '  <description>PHP CodeSniffer configuration for Drupal coding standards.</description>' >> phpcs.xml
+
+          count=0
+          for added_modified_file in "${added_modified_files[@]}"; do
+            if [[ $added_modified_file =~ "web/modules/custom" ]] || [[ $added_modified_file =~ "web/themes/custom" ]]; then
+              let "count+=1"
+              echo "  <file>./${added_modified_file}</file>" >> phpcs.xml
+            fi
+          done
+          echo "files_count=$count"
+          echo "files_count=$count" >> $GITHUB_ENV
+
+          echo '  <arg name="extensions" value="php,module,inc,install,test,theme" />' >> phpcs.xml
+          echo '  <config name="drupal_core_version" value="8" />' >> phpcs.xml
+          echo '  <rule ref="Drupal" />' >> phpcs.xml
+          echo '  <rule ref="DrupalPractice" />' >> phpcs.xml
+          echo '</ruleset>' >> phpcs.xml
+          cat phpcs.xml
+
+      - name: Upload phpcs.xml
+        if: ${{ env.files_count != 0 }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: phpcs
+          path: phpcs.xml
+
+    outputs:
+      files_count: ${{ env.files_count }}
+
+  php_codesniffer:
+    name: Check coding standards
+    needs: pr_changes
+    if: ${{ needs.pr_changes.outputs.files_count != 0 }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php_version: [ '8.0' ]
+
+    steps:
+      - name: check variables
+        run: echo ${{needs.pr_changes.outputs.files_count}}
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Download phpcs.xml
+        uses: actions/download-artifact@v2
+        with:
+          name: phpcs
+
+      - name: Set up PHP ${{ matrix.php_version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php_version }}
+
+      - name: Install dependencies
+        run: composer require --dev drupal/coder dealerdirect/phpcodesniffer-composer-installer
+
+      - name: Run phpcs with Drupal coding standards.
+        uses: guix77/phpcs-drupal-action@v1.0.0
