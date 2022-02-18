@@ -1,0 +1,136 @@
+uuid: 63968d26-9a02-46bb-a63e-d2978d2ffb4f
+langcode: und
+status: true
+dependencies:
+  module:
+    - webform_migrate
+id: upgrade_d7_field_instance_webform_submission_reference
+class: Drupal\migrate_drupal\Plugin\migrate\FieldMigration
+field_plugin_method: alterFieldInstanceMigration
+cck_plugin_method: null
+migration_tags:
+  - 'Drupal 7'
+  - Configuration
+migration_group: migrate_webforms
+label: 'Field instance configuration'
+source:
+  plugin: d7_field_instance
+  constants:
+    status: true
+  conditions:
+    - field: fc.type
+      value: webform_submission_reference
+      operator: =
+process:
+  type:
+    -
+      plugin: default_value
+      default_value: entity_reference
+  entity_type:
+    -
+      plugin: get
+      source: entity_type
+  field_name:
+    -
+      plugin: get
+      source: field_name
+  bundle_mapped:
+    -
+      plugin: static_map
+      source: bundle
+      bypass: true
+      map:
+        comment_node_forum: comment_forum
+  bundle:
+    -
+      plugin: field_bundle
+      source:
+        - entity_type
+        - '@bundle_mapped'
+  label:
+    -
+      plugin: get
+      source: label
+  description:
+    -
+      plugin: get
+      source: description
+  required:
+    -
+      plugin: default_value
+      default_value: 1
+  status:
+    -
+      plugin: get
+      source: constants/status
+  allowed_values:
+    -
+      plugin: sub_process
+      source: allowed_vid
+      process:
+        -
+          plugin: migration_lookup
+          migration: upgrade_d7_taxonomy_vocabulary
+          source: vid
+  default_settings:
+    -
+      plugin: default_value
+      default_value:
+        handler_settings:
+          target_bundles: []
+          sort:
+            field: _none
+            direction: ASC
+          auto_create: false
+          auto_create_bundle: ''
+  settings:
+    -
+      plugin: d7_field_instance_settings
+      source:
+        - '@default_settings'
+        - widget
+        - field_definition
+  settings/handler_settings/target_bundles:
+    -
+      plugin: static_map
+      source: '@bundle'
+      map:
+        idea:
+          idea: idea
+        query:
+          query: query
+      default_Value: []
+
+  default_value_function:
+    -
+      plugin: get
+      source: ''
+  default_value:
+    -
+      plugin: d7_field_instance_defaults
+      source:
+        - default_value
+        - widget
+  translatable:
+    -
+      plugin: get
+      source: translatable
+  settings/title:
+    -
+      plugin: static_map
+      source: settings/title
+      bypass: true
+      map:
+        disabled: 0
+        optional: 1
+        required: 2
+destination:
+  plugin: 'entity:field_config'
+migration_dependencies:
+  required:
+    - upgrade_d7_field_webform_submission_reference
+    - upgrade_d7_webform_submission
+  optional:
+    - upgrade_d7_node_type
+    - upgrade_d7_comment_type
+    - upgrade_d7_taxonomy_vocabulary

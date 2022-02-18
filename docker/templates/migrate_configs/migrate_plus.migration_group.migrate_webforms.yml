@@ -1,0 +1,12 @@
+uuid: a45ccb66-c43b-4820-9e3c-8809b483025d
+langcode: en
+status: true
+dependencies: {  }
+id: migrate_webforms
+label: 'Invotra - migrate webforms'
+description: 'The custom configs to migrate webforms with required fields and relationships. It should be the second step of the migration. First of all we need to migrate the content by the default configs.'
+source_type: 'Drupal 7'
+module: null
+shared_configuration:
+  source:
+    key: drupal_7

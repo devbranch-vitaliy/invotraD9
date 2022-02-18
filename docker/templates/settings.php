@@ -770,6 +770,7 @@ $settings['migrate_node_migrate_type_classic'] = FALSE;
 #   include $app_root . '/' . $site_path . '/settings.local.php';
 # }
 $settings['config_sync_directory'] = '../config/sync';
+$settings['file_private_path'] = 'sites/default/files/private';
 $databases['default']['default'] = array (
   'database' => 'drupal',
   'username' => 'drupal',
@@ -780,7 +781,7 @@ $databases['default']['default'] = array (
   'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
   'driver' => 'mysql',
 );
-$databases['default']['invotra'] = array (
+$databases['drupal_7']['default'] = array (
   'database' => 'invotra',
   'username' => 'drupal',
   'password' => 'invdb',

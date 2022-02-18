@@ -1,0 +1,423 @@
+diff --git a/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php b/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php
+index 7e4a009d7c22b7915fd7f198bc5d06fecb0699b8..eb2c55803b14f45523e8760407df5b8d67f24988 100644
+--- a/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php
++++ b/core/modules/migrate/src/Plugin/migrate/source/SqlBase.php
+@@ -31,6 +31,103 @@
+  *   joined. Using expressions in the query may result in column aliases in the
+  *   JOIN clause which would be invalid SQL. If you run into this, set
+  *   ignore_map to TRUE.
++ * - conditions: (optional) Conditions to add to the query. This should be in
++ *   array format with each array item providing values for field, value
++ *   (optional, defaults to NULL) and operator (optional, defaults to '=').
++ *   Defaults to an empty array. For more documentation refer to
++ *   \Drupal\Core\Database\Query\ConditionInterface::condition().
++ * - joins: (optional) A list of joins against other tables in the database.
++ *   Typically, it can be used to add some conditions by Field API values, which
++ *   are located in separate database tables. This value should be in array
++ *   format with each array item providing values for table, alias, condition,
++ *   and join type (optional, defaults to INNER). Defaults to an empty array.
++ *   For more documentation refer to
++ *   \Drupal\Core\Database\Query\SelectInterface::addJoin().
++ * - fields: (optional) Add extra fields to the query. This is useful when using
++ *   'joins' - we can retrieve an extra migration source from the joined table.
++ *   This should be in array format with each array item providing values for
++ *   table_alias, field, alias (optional, defaults to NULL). Defaults to an
++ *   empty array. For more documentation refer to
++ *   \Drupal\Core\Database\Query\SelectInterface::addField().
++ * - distinct: (optional) Sets the source plugin query to be DISTINCT if set to
++ *   TRUE. If set to FALSE, the distinct flag will be disabled.
++ *
++ * Examples:
++ *
++ * @code
++ * source:
++ *   plugin: d7_node
++ *   conditions:
++ *     -
++ *       field: n.status
++ *       value: 1
++ *     -
++ *       field: type
++ *       value: article
++ *       operator: <>
++ * @endcode
++ *
++ * In this example only published nodes of all types except 'article' are
++ * retrieved from the source database.
++ *
++ * @code
++ * source:
++ *   plugin: d7_user
++ *   joins:
++ *     -
++ *       table: field_data_field_group
++ *       alias: g
++ *       condition: u.uid = g.entity_id
++ *   conditions:
++ *     -
++ *       field: g.field_group_value
++ *       value: foo
++ * @endcode
++ *
++ * In this example users with 'foo' field_group value are retrieved from the
++ * source database. field_group field values are located in another database
++ * table, which should be joined against base table (users).
++ *
++ * @code
++ * source:
++ *   plugin: d7_user
++ *   joins:
++ *     -
++ *       table: users_roles
++ *       alias: ur
++ *       condition: u.uid = ur.uid
++ *   conditions:
++ *     -
++ *       field: ur.rid
++ *       value: [1, 2, 3]
++ *       operator: IN
++ *   distinct: TRUE
++ * @endcode
++ *
++ * In this example users of certain roles are retrieved from the source
++ * database. The distinct is required to remove duplicate records, because each
++ * user can have multiple roles.
++ *
++ * @code
++ * source:
++ *   plugin: d7_user
++ *   joins:
++ *     -
++ *       table: foo
++ *       alias: f
++ *       type: LEFT
++ *       condition: u.uid = f.uid
++ *   fields:
++ *     -
++ *       table_alias: f
++ *       field: bar
++ *       alias: my_bar
++ * @endcode
++ *
++ * In this example adds an extra user field 'bar'. The 'bar' field values are
++ * located in another custom database table 'foo', which should be joined
++ * against base table (users). This will provide a new source of migration
++ * 'my_bar'.
+  *
+  * For other optional configuration keys inherited from the parent class, refer
+  * to \Drupal\migrate\Plugin\migrate\source\SourcePluginBase.
+@@ -110,6 +207,30 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
+   public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, StateInterface $state) {
+     parent::__construct($configuration, $plugin_id, $plugin_definition, $migration);
+     $this->state = $state;
++
++    // Validate 'conditions' and 'joins' configuration keys.
++    foreach (['conditions', 'joins', 'fields'] as $config_key) {
++      $this->configuration[$config_key] = $this->configuration[$config_key] ?? [];
++
++      if (!is_array($this->configuration[$config_key])) {
++        throw new \InvalidArgumentException("'$config_key' configuration key should be an array of arrays.");
++      }
++    }
++    foreach ($this->configuration['conditions'] as $condition) {
++      if (!is_array($condition) || !isset($condition['field'])) {
++        throw new \InvalidArgumentException("Each 'conditions' array item must be an array including field, value (optional), and operator (optional) keys.");
++      }
++    }
++    foreach ($this->configuration['joins'] as $join) {
++      if (!is_array($join) || !isset($join['table']) || !isset($join['alias']) || !isset($join['condition'])) {
++        throw new \InvalidArgumentException("Each 'joins' array item must be an array including table, alias, condition, and type (optional) keys.");
++      }
++    }
++    foreach ($this->configuration['fields'] as $field) {
++      if (!is_array($field) || !isset($field['table_alias']) || !isset($field['field'])) {
++        throw new \InvalidArgumentException("Each 'fields' array item must be an array including table_alias, field, alias (optional) keys.");
++      }
++    }
+   }
+
+   /**
+@@ -233,10 +354,10 @@ protected function select($table, $alias = NULL, array $options = []) {
+   }
+
+   /**
+-   * Adds tags and metadata to the query.
++   * Adds tags, metadata, and configured conditions and joins to the query.
+    *
+    * @return \Drupal\Core\Database\Query\SelectInterface
+-   *   The query with additional tags and metadata.
++   *   The query with additional tags, metadata, and configured conditions and joins.
+    */
+   protected function prepareQuery() {
+     $this->query = clone $this->query();
+@@ -244,6 +365,26 @@ protected function prepareQuery() {
+     $this->query->addTag('migrate_' . $this->migration->id());
+     $this->query->addMetaData('migration', $this->migration);
+
++    // Add any configured conditions.
++    foreach ($this->configuration['conditions'] as $condition) {
++      $this->query->condition($condition['field'], $condition['value'] ?? NULL, $condition['operator'] ?? '=');
++    }
++
++    // Add any configured joins.
++    foreach ($this->configuration['joins'] as $join) {
++      $this->query->addJoin($join['type'] ?? 'INNER', $join['table'], $join['alias'], $join['condition']);
++    }
++
++    // Add any configured joins.
++    foreach ($this->configuration['fields'] as $field) {
++      $this->query->addField($field['table_alias'], $field['field'], $field['alias'] ?? NULL);
++    }
++
++    // Add distinct, if configured.
++    if (isset($this->configuration['distinct'])) {
++      $this->query->distinct((bool) $this->configuration['distinct']);
++    }
++
+     return $this->query;
+   }
+
+@@ -388,7 +529,7 @@ abstract public function query();
+    * Gets the source count using countQuery().
+    */
+   protected function doCount() {
+-    return (int) $this->query()->countQuery()->execute()->fetchField();
++    return (int) $this->prepareQuery()->countQuery()->execute()->fetchField();
+   }
+
+   /**
+diff --git a/core/modules/migrate/tests/src/Unit/SqlBaseTest.php b/core/modules/migrate/tests/src/Unit/SqlBaseTest.php
+index aa843c4ea2890fa492f6ebd0c5813dacf9bf3630..3154e76988744b524d6919ef668825eccd54002c 100644
+--- a/core/modules/migrate/tests/src/Unit/SqlBaseTest.php
++++ b/core/modules/migrate/tests/src/Unit/SqlBaseTest.php
+@@ -7,6 +7,7 @@
+
+ namespace Drupal\Tests\migrate\Unit;
+
++use Drupal\Core\State\StateInterface;
+ use Drupal\migrate\Plugin\MigrationInterface;
+ use Drupal\migrate\Plugin\migrate\source\SqlBase;
+ use Drupal\Tests\UnitTestCase;
+@@ -18,6 +19,71 @@
+  */
+ class SqlBaseTest extends UnitTestCase {
+
++  /**
++   * The default configuration array.
++   *
++   * @var array
++   */
++  protected $configuration = [];
++
++  /**
++   * The default plugin_id string.
++   *
++   * @var string
++   */
++  protected $pluginId = '';
++
++  /**
++   * The default plugin_definition array.
++   *
++   * @var array
++   */
++  protected $pluginDefinition = [];
++
++  /**
++   * Tests that source conditions are recognized.
++   *
++   * @param array|string $conditions
++   *   Source conditions.
++   *
++   * @dataProvider sqlBaseConstructorTestProvider
++   */
++  public function testConstructor($conditions) {
++    $configuration = [
++      'conditions' => $conditions,
++    ];
++    // Setup the migration interface.
++    $migration = $this->getMockBuilder(MigrationInterface::class)
++      ->disableOriginalConstructor()
++      ->getMock();
++
++    // Setup the state object.
++    $state = $this->getMockBuilder(StateInterface::class)
++      ->disableOriginalConstructor()
++      ->getMock();
++
++    // Test with an invalid process pipeline.
++    $this->expectException(\InvalidArgumentException::class);
++    new TestSqlBase($configuration, $this->pluginId, $this->pluginDefinition, $migration, $state);
++  }
++
++  /**
++   * The data provider for testConstructor.
++   */
++  public function sqlBaseConstructorTestProvider() {
++    return [
++      'not array' => [
++        'conditions' => '',
++      ],
++      'not multidimensional array' => [
++        'conditions' => [''],
++      ],
++      'field not specified' => [
++        'conditions' => [['']],
++      ],
++    ];
++  }
++
+   /**
+    * Tests that the ID map is joinable.
+    *
+@@ -61,14 +127,19 @@ public function testMapJoinable($expected_result, $id_map_is_sql, $with_id_map,
+       ->method('getDatabase')
+       ->willReturn($id_map_connection);
+
++    // Setup the State object.
++    $state = $this->getMockBuilder(StateInterface::class)
++      ->disableOriginalConstructor()
++      ->getMock();
++
+     // Setup a migration entity.
+     $migration = $this->createMock(MigrationInterface::class);
+-    $migration->expects($with_id_map ? $this->once() : $this->never())
++    $migration->expects($this->atLeastOnce())
+       ->method('getIdMap')
+       ->willReturn($id_map_is_sql ? $sql : NULL);
+
+     // Create our SqlBase test class.
+-    $sql_base = new TestSqlBase();
++    $sql_base = new TestSqlBase($this->configuration, $this->pluginId, $this->pluginDefinition, $migration, $state);
+     $sql_base->setMigration($migration);
+     $sql_base->setDatabase($source_connection);
+
+@@ -140,6 +211,101 @@ public function sqlBaseTestProvider() {
+     ];
+   }
+
++  /**
++   * Test prepare query for valid condition.
++   *
++   * @param array $conditions
++   *   Source conditions.
++   *
++   * @dataProvider prepareQueryTestProvider
++   */
++  public function testPrepareQuery($conditions) {
++    $migration = $this->getMockBuilder(MigrationInterface::class)
++      ->disableOriginalConstructor()
++      ->getMock();
++    // Setup the state object.
++    $state = $this->getMockBuilder(StateInterface::class)
++      ->disableOriginalConstructor()
++      ->getMock();
++
++    $configuration['conditions'] = $conditions['condition'];
++    $expected_result = $conditions['expected_result'];
++
++    foreach ($configuration['conditions'] as $condition) {
++      $result[] = [$condition['field'], $condition['value'] ?? NULL, $condition['operator'] ?? '='];
++    }
++    // For multiple result.
++    $this->assertEquals($expected_result, $result);
++    new TestSqlBase($configuration, $this->pluginId, $this->pluginDefinition, $migration, $state);
++  }
++
++  /**
++   * The data provider for testPrepareQuery.
++   */
++  public function prepareQueryTestProvider() {
++    return [
++      'field value operator condition' => [
++        'data' => [
++           'condition' => [
++            [
++              'field' => 'nid',
++              'value' => '3',
++              'operator' => '>',
++            ],
++          ],
++           'expected_result' => [
++            ['nid', '3', '>'],
++          ],
++       ],
++      ],
++      'default operator condition' => [
++        'data' => [
++         'condition' => [
++            [
++              'field' => 'type',
++              'value' => 'article',
++            ],
++          ],
++          'expected_result' => [
++            ['type', 'article', '='],
++          ],
++         ],
++      ],
++      'default value null condition' => [
++        'data' => [
++          'condition' => [
++            [
++              'field' => 'langcode',
++              'operator' => 'IS',
++            ],
++          ],
++          'expected_result' => [
++            ['langcode', NULL, 'IS'],
++          ],
++         ],
++      ],
++      'field value operator multiple condition' => [
++        'data' => [
++           'condition' => [
++            [
++              'field' => 'nid',
++              'value' => '3',
++              'operator' => '>',
++            ],
++            [
++              'field' => 'title',
++              'operator' => 'IS',
++            ],
++          ],
++           'expected_result' => [
++            ['nid', '3', '>'],
++            ['title', NULL, 'IS'],
++          ],
++       ],
++      ],
++    ];
++  }
++
+ }
+
+ /**
+@@ -162,9 +328,11 @@ class TestSqlBase extends SqlBase {
+   protected $ids;
+
+   /**
+-   * Override the constructor so we can create one easily.
++   * {@inheritdoc}
+    */
+-  public function __construct() {}
++  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, StateInterface $state) {
++    parent::__construct($configuration, $plugin_id, $plugin_definition, $migration, $state);
++  }
+
+   /**
+    * Allows us to set the database during tests.
+diff --git a/core/modules/migrate_drupal/tests/src/Kernel/d6/FieldDiscoveryTest.php b/core/modules/migrate_drupal/tests/src/Kernel/d6/FieldDiscoveryTest.php
+index 7085fa7239e5eb4738a1e93b2ad701d8fb64f9d5..4d3f34d8bb1088e9ee9884cc30b3254436f24327 100644
+--- a/core/modules/migrate_drupal/tests/src/Kernel/d6/FieldDiscoveryTest.php
++++ b/core/modules/migrate_drupal/tests/src/Kernel/d6/FieldDiscoveryTest.php
+@@ -285,7 +285,7 @@ public function testGetAllFields() {
+     foreach ($actual_fields['node'] as $bundle => $fields) {
+       foreach ($fields as $field_name => $field_info) {
+         $this->assertArrayHasKey('type', $field_info);
+-        $this->assertCount(22, $field_info);
++        $this->assertCount(25, $field_info);
+         $this->assertEquals($bundle, $field_info['type_name']);
+       }
+     }

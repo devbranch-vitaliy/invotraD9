@@ -1,0 +1,258 @@
+uuid: 046b19e1-bb28-4dd4-aef7-6c16193e0a4d
+langcode: en
+status: true
+dependencies: {  }
+id: upgrade_d7_user
+class: Drupal\user\Plugin\migrate\User
+field_plugin_method: null
+cck_plugin_method: null
+migration_tags:
+  - 'Drupal 7'
+  - Content
+migration_group: migrate_webforms
+label: 'User accounts'
+source:
+  plugin: d7_user
+process:
+  uid:
+    -
+      plugin: get
+      source: uid
+  name:
+    -
+      plugin: get
+      source: name
+  pass:
+    -
+      plugin: get
+      source: pass
+  mail:
+    -
+      plugin: get
+      source: mail
+  created:
+    -
+      plugin: get
+      source: created
+  access:
+    -
+      plugin: get
+      source: access
+  login:
+    -
+      plugin: get
+      source: login
+  status:
+    -
+      plugin: get
+      source: status
+  timezone:
+    -
+      plugin: get
+      source: timezone
+  langcode:
+    -
+      plugin: user_langcode
+      source: entity_language
+      fallback_to_site_default: false
+  preferred_langcode:
+    -
+      plugin: user_langcode
+      source: language
+      fallback_to_site_default: true
+  preferred_admin_langcode:
+    -
+      plugin: user_langcode
+      source: language
+      fallback_to_site_default: true
+  init:
+    -
+      plugin: get
+      source: init
+  roles:
+    -
+      plugin: migration_lookup
+      migration: upgrade_d7_user_role
+      source: roles
+  user_picture:
+    -
+      plugin: default_value
+      source: picture
+      default_value: null
+    -
+      plugin: migration_lookup
+      migration: upgrade_d7_file
+  og_user_node:
+    -
+      plugin: get
+      source: og_user_node
+  og_user_taxonomy_term:
+    -
+      plugin: get
+      source: og_user_taxonomy_term
+  field_about_me:
+    -
+      plugin: get
+      source: field_about_me
+  field_birthday:
+    -
+      plugin: sub_process
+      source: field_birthday
+      process:
+        value:
+          plugin: format_date
+          from_format: 'Y-m-d H:i:s'
+          to_format: Y-m-d
+          source: value
+  field_external_id:
+    -
+      plugin: get
+      source: field_external_id
+  field_facebook:
+    -
+      plugin: field_link
+      source: field_facebook
+  field_forename:
+    -
+      plugin: get
+      source: field_forename
+  field_free_skills:
+    -
+      plugin: sub_process
+      source: field_free_skills
+      process:
+        target_id: tid
+  field_grade:
+    -
+      plugin: get
+      source: field_grade
+  field_interests:
+    -
+      plugin: sub_process
+      source: field_interests
+      process:
+        target_id: tid
+  field_job_role:
+    -
+      plugin: get
+      source: field_job_role
+  field_job_title_temp:
+    -
+      plugin: get
+      source: field_job_title_temp
+  field_known_as:
+    -
+      plugin: get
+      source: field_known_as
+  field_linkedin:
+    -
+      plugin: field_link
+      source: field_linkedin
+  field_locations:
+    -
+      plugin: get
+      source: field_locations
+  field_manager:
+    -
+      plugin: get
+      source: field_manager
+  field_middle_name:
+    -
+      plugin: get
+      source: field_middle_name
+  field_organisational_unit:
+    -
+      plugin: get
+      source: field_organisational_unit
+  field_person_types:
+    -
+      plugin: sub_process
+      source: field_person_types
+      process:
+        target_id: tid
+  field_person_types_term_name:
+    -
+      plugin: get
+      source: field_person_types_term_name
+  field_phone_mobile:
+    -
+      plugin: get
+      source: field_phone_mobile
+  field_phone_no:
+    -
+      plugin: get
+      source: field_phone_no
+  field_pid:
+    -
+      plugin: get
+      source: field_pid
+  field_region:
+    -
+      plugin: get
+      source: field_region
+  field_skills:
+    -
+      plugin: get
+      source: field_skills
+  field_surname:
+    -
+      plugin: get
+      source: field_surname
+  field_twitter:
+    -
+      plugin: field_link
+      source: field_twitter
+  field_user_title:
+    -
+      plugin: sub_process
+      source: field_user_title
+      process:
+        target_id: tid
+  invotra_archived:
+    -
+      plugin: get
+      source: invotra_archived
+  field_user_picture:
+    -
+      plugin: sub_process
+      source: field_user_picture
+      process:
+        target_id: fid
+        alt: alt
+        title: title
+        width: width
+        height: height
+  field_badges:
+    -
+      plugin: get
+      source: field_badges
+  field_anonymised:
+    -
+      plugin: get
+      source: field_anonymised
+  field_hide_email_address:
+    -
+      plugin: get
+      source: field_hide_email_address
+  field_hide_phone_number:
+    -
+      plugin: get
+      source: field_hide_phone_number
+  field_gender_pronouns:
+    -
+      plugin: sub_process
+      source: field_gender_pronouns
+      process:
+        target_id: tid
+destination:
+  plugin: 'entity:user'
+migration_dependencies:
+  required:
+    - upgrade_d7_user_role
+  optional:
+    - upgrade_d7_field_instance
+    - upgrade_d7_file
+    - upgrade_user_picture_field_instance
+    - upgrade_user_picture_entity_display
+    - upgrade_user_picture_entity_form_display
+    - upgrade_d7_user_role
