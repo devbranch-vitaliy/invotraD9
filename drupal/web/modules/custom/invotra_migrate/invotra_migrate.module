@@ -1,0 +1,10 @@
+<?php
+
+/**
+ * @file
+ * Override default plugin processes.
+ */
+
+function  invotra_migrate_test($test_variable){
+  return $test_variable * 5;
+}

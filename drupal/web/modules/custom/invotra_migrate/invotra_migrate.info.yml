@@ -1,0 +1,9 @@
+name: 'Invotra Migrate'
+type: module
+description: 'Migration routines from d7 Invotra to d9 Invotra'
+core_version_requirement: ^8.8 || ^9
+package: 'Migration'
+dependencies:
+  - webform_migrate:webform_migrate
+version: '1.0'
+project: 'invotra_migrate'
