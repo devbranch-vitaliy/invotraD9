@@ -98,6 +98,10 @@ process:
     -
       plugin: get
       source: field_submission/0/sid
+  field_webform_app_id:
+    -
+      plugin: get
+      source: field_idea_reference
 destination:
   plugin: 'entity_complete:node'
   translations: true
@@ -107,6 +111,7 @@ migration_dependencies:
     - upgrade_d7_user
     - upgrade_d7_node_type
     - upgrade_d7_field_instance_webform_submission_reference
+    - upgrade_d7_field_instance_webform_app_id
   optional:
     - upgrade_d7_field_instance
     - upgrade_d7_comment_field_instance
