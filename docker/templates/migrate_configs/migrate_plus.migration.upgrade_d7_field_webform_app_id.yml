@@ -1,0 +1,69 @@
+uuid: 7d74c1ac-92f6-11ec-b909-0242ac120002
+langcode: en
+status: true
+dependencies: {  }
+id: upgrade_d7_field_webform_app_id
+class: Drupal\migrate_drupal\Plugin\migrate\FieldMigration
+field_plugin_method: alterFieldMigration
+cck_plugin_method: null
+migration_tags:
+  - 'Drupal 7'
+  - Configuration
+migration_group: migrate_webforms
+label: 'Field Webform App ID configuration'
+source:
+  plugin: embedded_data
+  data_rows:
+    -
+      entity_type: node
+      field_name: field_webform_app_id
+      type: string
+      settings:
+        max_length: 255
+        case_sensitive: false
+        is_ascii: false
+  ids:
+    entity_type:
+      type: string
+    field_name:
+      type: string
+    type:
+      type: string
+  constants:
+    status: true
+    langcode: und
+    cardinality: 1
+process:
+  entity_type:
+    -
+      plugin: get
+      source: entity_type
+  status:
+    -
+      plugin: get
+      source: constants/status
+  langcode:
+    -
+      plugin: get
+      source: constants/langcode
+  field_name:
+    -
+      plugin: get
+      source: field_name
+  type:
+    -
+      plugin: get
+      source: type
+  cardinality:
+    -
+      plugin: get
+      source: constants/cardinality
+  settings:
+    -
+      plugin: get
+      source: settings
+destination:
+  plugin: 'entity:field_storage_config'
+migration_dependencies:
+  required: {  }
+  optional: {  }
