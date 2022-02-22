@@ -16,18 +16,7 @@ source:
   plugin: invotra_d7_webform_submission
 process:
   sid: sid
-  app_webform:
-    - plugin: static_map
-      source: machine_name
-      map:
-        ideas: idea
-        queries: query
-      default_value: null
-  webform_id:
-    - plugin: null_coalesce
-      source:
-        - '@app_webform'
-        - webform_id
+  webform_id: webform_id
   uri: Webform_uri
   created: submitted
   completed: submitted

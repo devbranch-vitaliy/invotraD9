@@ -70,11 +70,40 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
   public function prepareRow(Row $row) {
     $nid = $row->getSourceProperty('nid');
     $sid = $row->getSourceProperty('sid');
+    $machine_name = $row->getSourceProperty('machine_name');
     $submitted_data = $this->buildSubmittedData($sid);
-    $row->setSourceProperty('webform_id', 'webform_' . $nid);
+    $row->setSourceProperty('webform_id', $this->getWebformId($nid, $machine_name));
     $row->setSourceProperty('webform_data', $submitted_data);
     $row->setSourceProperty('webform_uri', '/form/webform-' . $nid);
     return parent::prepareRow($row);
+  }
+
+  /**
+   * Prepare webform ID according to the node ID and machine name.
+   *
+   * @param string $nid
+   *   Node ID.
+   * @param string $machine_name
+   *   Webform machine name.
+   *
+   * @return string
+   *   A new webform ID.
+   */
+  private function getWebformId(string $nid, string $machine_name): string {
+    switch ($machine_name) {
+      case 'ideas':
+        $webform_id = 'idea';
+        break;
+
+      case 'queries':
+        $webform_id = 'query';
+        break;
+
+      default:
+        $webform_id = 'webform_' . $nid;
+    }
+
+    return $webform_id;
   }
 
   /**
