@@ -5,6 +5,5 @@ core_version_requirement: ^8.8 || ^9
 package: 'Invotra'
 dependencies:
   - webform:webform
-  - webform_migrate:webform_migrate
 version: '1.0'
 project: 'invotra_webform'

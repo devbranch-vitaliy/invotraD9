@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "60ada0c08188dc059cd1c4d52fe0d168",
+    "content-hash": "298dbae2a778ccce7723d222e46ed8a0",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -1993,79 +1993,28 @@
             }
         },
         {
-            "name": "drupal/webform_migrate",
-            "version": "1.2.0",
+            "name": "drupal/webform_content_creator",
+            "version": "2.0.2",
             "source": {
                 "type": "git",
-                "url": "https://git.drupalcode.org/project/webform_migrate.git",
-                "reference": "8.x-1.2"
+                "url": "https://git.drupalcode.org/project/webform_content_creator.git",
+                "reference": "2.0.2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/webform_migrate-8.x-1.2.zip",
-                "reference": "8.x-1.2",
-                "shasum": "5bdd71ec318a51f5ebc20f30054eadbe14a2d1f0"
+                "url": "https://ftp.drupal.org/files/projects/webform_content_creator-2.0.2.zip",
+                "reference": "2.0.2",
+                "shasum": "0d5f861255bcdc5789a7119d87159725e11c9b15"
             },
             "require": {
-                "drupal/core": "^8.8 || ^9",
-                "drupal/webform": "*",
-                "drupal/webform_node": "*"
+                "drupal/core": "^8 || ^9",
+                "drupal/webform": "*"
             },
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "8.x-1.2",
-                    "datestamp": "1615806788",
-                    "security-coverage": {
-                        "status": "covered",
-                        "message": "Covered by Drupal's security advisory policy"
-                    }
-                }
-            },
-            "notification-url": "https://packages.drupal.org/8/downloads",
-            "license": [
-                "GPL-2.0+"
-            ],
-            "authors": [
-                {
-                    "name": "andr1yun",
-                    "homepage": "https://www.drupal.org/user/1277538"
-                },
-                {
-                    "name": "heshanlk",
-                    "homepage": "https://www.drupal.org/user/199102"
-                },
-                {
-                    "name": "jrockowitz",
-                    "homepage": "https://www.drupal.org/user/371407"
-                },
-                {
-                    "name": "sylus",
-                    "homepage": "https://www.drupal.org/user/339714"
-                }
-            ],
-            "description": "Migration routines from d6 & d7 webform to d8 webform",
-            "homepage": "https://www.drupal.org/project/webform_migrate",
-            "keywords": [
-                "Drupal"
-            ],
-            "support": {
-                "source": "http://cgit.drupalcode.org/webform_migrate",
-                "issues": "http://drupal.org/project/issues/webform_migrate"
-            }
-        },
-        {
-            "name": "drupal/webform_node",
-            "version": "6.1.2",
-            "require": {
-                "drupal/core": "^8.8 || ^9",
-                "drupal/webform": "*"
-            },
-            "type": "metapackage",
-            "extra": {
-                "drupal": {
-                    "version": "6.1.2",
-                    "datestamp": "1644940638",
+                    "version": "2.0.2",
+                    "datestamp": "1616077587",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -2078,30 +2027,38 @@
             ],
             "authors": [
                 {
-                    "name": "DanChadwick",
-                    "homepage": "https://www.drupal.org/user/504278"
+                    "name": "-nrzr-",
+                    "homepage": "https://www.drupal.org/user/3522063"
                 },
                 {
-                    "name": "Liam Morland",
-                    "homepage": "https://www.drupal.org/user/493050"
+                    "name": "Miguelpamferreira",
+                    "homepage": "https://www.drupal.org/user/3548054"
                 },
                 {
-                    "name": "jrockowitz",
-                    "homepage": "https://www.drupal.org/user/371407"
+                    "name": "Nelson Alves",
+                    "homepage": "https://www.drupal.org/user/3557178"
                 },
                 {
-                    "name": "quicksketch",
-                    "homepage": "https://www.drupal.org/user/35821"
+                    "name": "Rosa Pascoal Garcia",
+                    "homepage": "https://www.drupal.org/user/3500109"
                 },
                 {
-                    "name": "torotil",
-                    "homepage": "https://www.drupal.org/user/865256"
+                    "name": "dgaspara",
+                    "homepage": "https://www.drupal.org/user/3557179"
+                },
+                {
+                    "name": "joaomarques736",
+                    "homepage": "https://www.drupal.org/user/3557181"
+                },
+                {
+                    "name": "ricardotenreiro",
+                    "homepage": "https://www.drupal.org/user/213132"
                 }
             ],
-            "description": "Provides a Webform content type which allows webforms to be integrated into a website as nodes.",
-            "homepage": "https://www.drupal.org/project/webform",
+            "description": "Allows you to create content entities and do mappings between respective fields and webform submission values.",
+            "homepage": "https://www.drupal.org/project/webform_content_creator",
             "support": {
-                "source": "https://git.drupalcode.org/project/webform"
+                "source": "https://git.drupalcode.org/project/webform_content_creator"
             }
         },
         {
