@@ -138,6 +138,7 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
       /** @var \Drupal\webform\WebformEntityStorageInterface $webform_storage */
       $webform_storage = $this->entityTypeManager->getStorage('webform');
       $max_serial = $webform_storage->getMaxSerial($webform);
+      $next_serial_current = $webform_storage->getNextSerial($webform);
 
       // Retrieve a next serial number.
       // @see InvotraD7 - invotra_ideas_reference_get_next_ref_num()
@@ -147,11 +148,11 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
 
       // FALSE will be converted to 0.
       $last_value = intval($query->execute()->fetchField());
-      $next_serial = $last_value + 1;
+      $next_serial = max($last_value + 1, $max_serial);
 
       // Set next serial number.
       // @see WebformEntitySettingsSubmissionsForm::save()
-      if ($next_serial > $max_serial) {
+      if ($next_serial > $next_serial_current) {
         $webform_storage->setNextSerial($webform, $next_serial);
       }
     }
