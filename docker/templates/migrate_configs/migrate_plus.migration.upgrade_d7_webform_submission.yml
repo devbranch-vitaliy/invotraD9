@@ -3,7 +3,7 @@ langcode: en
 status: true
 dependencies:
   module:
-    - webform_migrate
+    - invotra_webform
 id: upgrade_d7_webform_submission
 class: null
 field_plugin_method: null
@@ -13,7 +13,7 @@ migration_tags:
 migration_group: migrate_webforms
 label: 'Webform Form Submission'
 source:
-  plugin: d7_webform_submission
+  plugin: invotra_d7_webform_submission
   joins:
     -
       table: webform

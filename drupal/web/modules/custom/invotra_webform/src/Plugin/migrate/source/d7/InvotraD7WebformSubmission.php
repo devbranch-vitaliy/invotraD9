@@ -1,0 +1,152 @@
+<?php
+
+namespace Drupal\invotra_webform\Plugin\migrate\source\d7;
+
+use Drupal\migrate\Event\ImportAwareInterface;
+use Drupal\migrate\Event\MigrateImportEvent;
+use Drupal\migrate\Row;
+use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
+use Drupal\webform\Entity\Webform;
+
+/**
+ * Drupal 7 webform submission source from database.
+ *
+ * @MigrateSource(
+ *   id = "invotra_d7_webform_submission",
+ *   core = {7},
+ *   source_module = "webform",
+ *   destination_module = "webform"
+ * )
+ */
+class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInterface {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function query() {
+    $query = $this->select('webform_submissions', 'wfs');
+
+    $query->fields('wfs', [
+      'nid',
+      'sid',
+      'uid',
+      'submitted',
+      'remote_addr',
+      'is_draft',
+    ]);
+
+    return $query;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function fields() {
+    $fields = [
+      'nid' => $this->t('Webform node Id'),
+      'sid' => $this->t('Webform submission Id'),
+      'uid' => $this->t('User Id of submitter'),
+      'submitted' => $this->t('Submission timestamp'),
+      'remote_addr' => $this->t('IP Address of submitter'),
+      'is_draft' => $this->t('Whether this submission is draft'),
+      'webform_id' => $this->t('Id to be used for Webform'),
+      'webform_data' => $this->t('Webform submitted data'),
+      'webform_uri' => $this->t('Submission uri'),
+    ];
+    return $fields;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function prepareRow(Row $row) {
+    $nid = $row->getSourceProperty('nid');
+    $sid = $row->getSourceProperty('sid');
+    $submitted_data = $this->buildSubmittedData($sid);
+    $row->setSourceProperty('webform_id', 'webform_' . $nid);
+    $row->setSourceProperty('webform_data', $submitted_data);
+    $row->setSourceProperty('webform_uri', '/form/webform-' . $nid);
+    return parent::prepareRow($row);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getIds() {
+    $ids['sid']['type'] = 'integer';
+    $ids['sid']['alias'] = 'wfs';
+    return $ids;
+  }
+
+  /**
+   * Build submitted data from webform submitted data table.
+   */
+  private function buildSubmittedData($sid) {
+    $query = $this->select('webform_submitted_data', 'wfsd');
+    $query->innerJoin('webform_component', 'wc', 'wc.nid=wfsd.nid AND wc.cid=wfsd.cid');
+
+    $query->fields('wfsd', [
+      'no',
+      'data',
+    ])
+      ->fields('wc', [
+        'form_key',
+        'extra',
+      ]);
+    $wf_submissions = $query->condition('sid', $sid)->execute();
+
+    $submitted_data = [];
+    foreach ($wf_submissions as $wf_submission) {
+      $extra = unserialize($wf_submission['extra']);
+      if (!empty($extra['multiple']) && !empty($wf_submission['data'])) {
+        $item[$wf_submission['no']] = $wf_submission['data'];
+      }
+      else {
+        $item = $wf_submission['data'];
+      }
+      if (!empty($item)) {
+        $submitted_data[$wf_submission['form_key']] = $item;
+      }
+    }
+    return $submitted_data;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function preImport(MigrateImportEvent $event) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public function postImport(MigrateImportEvent $event) {
+    $webform_count_tables = ['idea' => 'invotra_ideas_reference', 'query' => 'invotra_queries_reference'];
+    foreach ($webform_count_tables as $webform_id => $count_table) {
+      // Retrieve webform by ID.
+      if (!($webform = Webform::load($webform_id))) {
+        continue;
+      }
+      // Retrieve max serial of the webform submissions.
+      /** @var \Drupal\webform\WebformEntityStorageInterface $webform_storage */
+      $webform_storage = $this->entityTypeManager->getStorage('webform');
+      $max_serial = $webform_storage->getMaxSerial($webform);
+
+      // Retrieve a next serial number.
+      // @see InvotraD7 - invotra_ideas_reference_get_next_ref_num()
+      // @see InvotraD7 - invotra_queries_reference_get_next_ref_num()
+      $query = $this->select($count_table);
+      $query->addExpression('MAX(value)');
+
+      // FALSE will be converted to 0.
+      $last_value = intval($query->execute()->fetchField());
+      $next_serial = $last_value + 1;
+
+      // Set next serial number.
+      // @see WebformEntitySettingsSubmissionsForm::save()
+      if ($next_serial > $max_serial) {
+        $webform_storage->setNextSerial($webform, $next_serial);
+      }
+    }
+  }
+
+}
