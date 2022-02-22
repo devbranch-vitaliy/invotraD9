@@ -25,6 +25,10 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
    */
   public function query() {
     $query = $this->select('webform_submissions', 'wfs');
+    $query->innerJoin('webform', 'wf', 'wf.nid = wfs.nid');
+    $query->leftJoin('field_data_field_submission', 'fs', 'fs.field_submission_sid = wfs.sid AND fs.entity_type = \'node\'');
+    $query->leftJoin('field_data_field_idea_reference', 'ir', 'ir.entity_type = fs.entity_type AND ir.entity_id = fs.entity_id');
+    $query->leftJoin('field_data_field_query_reference', 'qr', 'qr.entity_type = fs.entity_type AND qr.entity_id = fs.entity_id');
 
     $query->fields('wfs', [
       'nid',
@@ -34,6 +38,8 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
       'remote_addr',
       'is_draft',
     ]);
+    $query->fields('wf', ['machine_name']);
+    $query->addExpression('IFNULL(SUBSTRING(IFNULL(ir.field_idea_reference_value, IFNULL(qr.field_query_reference_value, NULL)), 4), wfs.serial)', 'serial');
 
     return $query;
   }
@@ -46,6 +52,8 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
       'nid' => $this->t('Webform node Id'),
       'sid' => $this->t('Webform submission Id'),
       'uid' => $this->t('User Id of submitter'),
+      'serial' => $this->t('The serial number of this submission.'),
+      'machine_name' => $this->t('The machine name of the webform'),
       'submitted' => $this->t('Submission timestamp'),
       'remote_addr' => $this->t('IP Address of submitter'),
       'is_draft' => $this->t('Whether this submission is draft'),

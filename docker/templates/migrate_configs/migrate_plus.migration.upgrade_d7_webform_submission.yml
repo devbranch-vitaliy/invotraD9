@@ -14,15 +14,6 @@ migration_group: migrate_webforms
 label: 'Webform Form Submission'
 source:
   plugin: invotra_d7_webform_submission
-  joins:
-    -
-      table: webform
-      alias: wf
-      condition: wf.nid = wfs.nid
-  fields:
-    -
-      table_alias: wf
-      field: machine_name
 process:
   sid: sid
   app_webform:
@@ -54,7 +45,7 @@ process:
   entity_id: nid
   sticky: {  }
   notes: {  }
-  serial: {  }
+  serial: serial
   data: webform_data
 destination:
   plugin: 'entity:webform_submission'
