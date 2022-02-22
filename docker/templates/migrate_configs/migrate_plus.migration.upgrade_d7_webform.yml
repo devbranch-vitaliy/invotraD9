@@ -3,7 +3,7 @@ langcode: en
 status: true
 dependencies:
   module:
-    - webform_migrate
+    - invotra_webform
 id: upgrade_d7_webform
 class: null
 field_plugin_method: null
@@ -13,25 +13,9 @@ migration_tags:
 migration_group: migrate_webforms
 label: Webform
 source:
-  plugin: d7_webform
-  fields:
-    -
-      table_alias: wf
-      field: machine_name
+  plugin: invotra_d7_webform
 process:
-  app_webform:
-    - plugin: static_map
-      source: machine_name
-      map:
-        ideas: idea
-        queries: query
-      default_value: null
-  id:
-    -
-      plugin: null_coalesce
-      source:
-        - '@app_webform'
-        - webform_id
+  id: webform_id
   uid: node_uid
   title: title
   status: status

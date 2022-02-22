@@ -3,7 +3,7 @@ langcode: en
 status: true
 dependencies:
   module:
-    - webform_migrate
+    - invotra_webform
 id: upgrade_d7_field_webform_submission_reference
 class: Drupal\migrate_drupal\Plugin\migrate\FieldMigration
 field_plugin_method: alterFieldMigration

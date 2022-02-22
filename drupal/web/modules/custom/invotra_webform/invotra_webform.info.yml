@@ -1,0 +1,9 @@
+name: 'Invotra Webform'
+type: module
+description: 'Functionality common for webforms on Invotra'
+core_version_requirement: ^8.8 || ^9
+package: 'Invotra'
+dependencies:
+  - webform:webform
+version: '1.0'
+project: 'invotra_webform'

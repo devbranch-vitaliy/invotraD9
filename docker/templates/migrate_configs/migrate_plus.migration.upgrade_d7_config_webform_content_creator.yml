@@ -1,0 +1,112 @@
+uuid: bbd950f8-93e0-11ec-b909-0242ac120002
+langcode: en
+status: true
+dependencies:
+  module:
+    - invotra_webform
+    - webform_content_creator
+id: upgrade_d7_config_webform_content_creator
+class: Drupal\migrate\Plugin\Migration
+field_plugin_method: null
+cck_plugin_method: null
+migration_tags:
+  - 'Drupal 7'
+  - Configuration
+migration_group: migrate_webforms
+label: 'Create default settings of the Webform Content Creator module'
+source:
+  plugin: embedded_data
+  data_rows:
+    -
+      id: idea
+      title: Idea
+      webform: idea
+      elements:
+        body:
+          type: false
+          webform_field: idea_summary
+          custom_check: false
+          custom_value: ''
+        field_submission:
+          type: true
+          webform_field: sid
+          custom_check: false
+          custom_value: ''
+        field_webform_app_id:
+          type: false
+          webform_field: ''
+          custom_check: true
+          custom_value: 'ID-[webform_submission:serial]'
+        title:
+          type: false
+          webform_field: idea_title
+          custom_check: false
+          custom_value: ''
+      target_bundle: idea
+    -
+      id: query
+      title: Query
+      webform: query
+      elements:
+        body:
+          type: false
+          webform_field: query_summary
+          custom_check: false
+          custom_value: ''
+        field_submission:
+          type: true
+          webform_field: sid
+          custom_check: false
+          custom_value: ''
+        field_webform_app_id:
+          type: false
+          webform_field: ''
+          custom_check: true
+          custom_value: 'QU-[webform_submission:serial]'
+        title:
+          type: false
+          webform_field: query_title
+          custom_check: false
+          custom_value: ''
+      target_bundle: query
+
+  ids:
+    id:
+      type: string
+  constants:
+    langcode: en
+    status: true
+    dependencies: {  }
+    content_type: null
+    field_title: null
+    use_encrypt: null
+    encryption_profile: null
+    sync_content: true
+    sync_content_delete: true
+    sync_content_field: field_submission
+    sync_content_node_field: null
+    target_entity_type: node
+process:
+  langcode: constants/langcode
+  status: constants/status
+  dependencies: constants/dependencies
+  id: id
+  title: title
+  webform: webform
+  content_type: constants/content_type
+  field_title: constants/field_title
+  use_encrypt: constants/use_encrypt
+  encryption_profile: constants/encryption_profile
+  sync_content: constants/sync_content
+  sync_content_delete: constants/sync_content_delete
+  sync_content_field: constants/sync_content_field
+  elements: elements
+  sync_content_node_field: constants/sync_content_node_field
+  target_entity_type: constants/target_entity_type
+  target_bundle: target_bundle
+destination:
+  plugin: 'entity:webform_content_creator'
+migration_dependencies:
+  required:
+    - upgrade_d7_field_instance_webform_submission_reference
+  optional: {  }
