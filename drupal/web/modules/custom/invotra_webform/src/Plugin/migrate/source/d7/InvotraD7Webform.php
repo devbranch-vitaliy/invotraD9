@@ -401,11 +401,7 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
           break;
 
         case 'number':
-          $extra['type'] ??= 'testfield';
-          if ($extra['type'] == 'textfield') {
-            $markup .= "$indent  '#type': textfield\n$indent  '#size': 20\n";
-          }
-          elseif ($extra['type'] == 'select') {
+          if ($extra['type'] == 'select') {
             $markup .= "$indent  '#type': select\n";
             $markup .= "$indent  '#options':\n" . $options;
             $min = $extra['min'];
@@ -414,6 +410,9 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
             for ($value = $min; $value <= $max; $value += $step) {
               $markup .= "$indent    " . $value . ": " . $value . "\n";
             }
+          }
+          else {
+            $markup .= "$indent  '#type': textfield\n$indent  '#size': 20\n";
           }
           if (isset($extra['min'])) {
             $markup .= "$indent  '#min': " . $extra['min'] . "\n";
