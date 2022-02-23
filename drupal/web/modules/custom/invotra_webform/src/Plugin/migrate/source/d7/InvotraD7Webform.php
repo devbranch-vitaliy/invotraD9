@@ -12,7 +12,7 @@ use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\webform\Entity\Webform;
 use Drupal\node\Entity\Node;
-use Symfony\Component\Yaml\Yaml;
+use Drupal\webform\Utility\WebformYaml;
 use Drupal\Component\Utility\Bytes;
 
 /**
@@ -212,9 +212,11 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
   /**
    * Build form elements from webform component table.
    */
-  private function buildFormElements($nid) {
-    // TODO : Use yaml_emit http://php.net/manual/en/function.yaml-emit.php
-    $output = '';
+  protected function buildFormElements($nid) {
+    // Resulting array build that will be converted to YAML.
+    $build = [];
+    // Array with all elements keyed by form_key for a quick access.
+    $references = [];
 
     $query = $this->select('webform_component', 'wc');
     $query->fields('wc', [
@@ -274,7 +276,13 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
           if ($depth > 0) {
             $element['form_key'] = $element['form_key'] . '_' . $element['pid'];
           }
-          unset($element['pid']);
+
+          // Rename fieldsets to it's own unique key.
+          if ($element['type'] == 'fieldset' && strpos($element['form_key'], 'fieldset') === FALSE) {
+            $element['form_key'] = 'fieldset_' . $element['form_key'];
+          }
+          $element['form_key'] = strtolower($element['form_key']);
+
           $elements_tree[] = $element;
           if (!empty($children[$element['cid']])) {
             $has_children = TRUE;
@@ -282,8 +290,8 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
             $process_parents[] = $parent;
             // Use the current component as parent for the next iteration.
             $process_parents[] = $element['cid'];
-            // Reset pointers for child lists because we step in there more often
-            // with multi parents.
+            // Reset pointers for child lists because we step in there more
+            // often with multi parents.
             reset($children[$element['cid']]);
             // Move pointer so that we get the correct term the next time.
             next($children[$parent]);
@@ -298,20 +306,17 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
       }
     }
 
+    $parent_element = &$build;
     // If form has multiple pages then start first page automatically.
     if ($multiPage) {
-      $pageCnt = 1;
-      $current_page = 'wizard_page_1';
-      $output .= "first_page:\n  '#type': webform_wizard_page\n  '#title': {" . $current_page . "_title}\n";
-      $current_page_title = 'Start';
+      $build['first_page'] = [
+        '#type' => 'webform_wizard_page',
+        '#title' => 'Start',
+      ];
+      $parent_element = &$build['first_page'];
     }
 
     foreach ($elements_tree as $element) {
-      // Rename fieldsets to it's own unique key.
-      if ($element['type'] == 'fieldset' && strpos($element['form_key'], 'fieldset') === FALSE) {
-        $element['form_key'] = 'fieldset_' . $element['form_key'];
-      }
-
       // If this is a multi-page form then indent all elements one level
       // to allow for page elements.
       if ($multiPage && $element['type'] != 'pagebreak') {
@@ -319,30 +324,30 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
       }
       $indent = str_repeat(' ', $element['depth'] * 2);
       $extra = unserialize($element['extra']);
-      $description = $this->cleanString($extra['description'] ?? '');
 
       // Create an option list if there are items for this element.
-      $options = '';
+      $options = [];
       $valid_options = [];
       if (!empty($extra['items'])) {
         $items = explode("\n", trim($extra['items']));
-        $ingroup = '';
         foreach ($items as $item) {
           $item = trim($item);
           if (!empty($item)) {
+            // Handle option groups.
             if (preg_match('/^<(.*)>$/', $item, $matches)) {
-              // Handle option groups.
-              $options .= "$indent    '" . $matches[1] . "':\n";
-              $ingroup = str_repeat(' ', 2);
+              if (empty(trim($matches[1]))) {
+                continue;
+              }
+              $options[$matches[1]] = '';
             }
             else {
               $option = explode('|', $item);
               $valid_options[] = $option[0];
               if (count($option) == 2) {
-                $options .= "$indent$ingroup    " . $option[0] . ": '" . str_replace('\'', '"', $option[1]) . "'\n";
+                $options[$option[0]] = $option[1];
               }
               else {
-                $options .= "$indent$ingroup    " . $option[0] . ": '" . str_replace('\'', '"', $option[0]) . "'\n";
+                $options[$option[0]] = $option[0];
               }
             }
           }
@@ -354,24 +359,47 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
         $element['value'] = $this->replaceTokens($element['value']);
       }
 
-      $markup = $indent . strtolower($element['form_key']) . ":\n";
+      // Let's find out the parent for the given element.
+      if (!empty($element['pid']) && !empty($elements[$element['pid']]['form_key'])) {
+        $parent_key = $elements[$element['pid']]['form_key'];
+        if (!empty($references[$parent_key])) {
+          $parent_element = &$references[$parent_key];
+        }
+      }
+      elseif ($multiPage && $element['type'] !== 'pagebreak') {
+        // If previous item was a page, use it as parent element.
+        // Otherwise, use previous parent.
+        if (!empty($new_element['#type']) && $new_element['#type'] === 'webform_wizard_page') {
+          $parent_element = &$new_element;
+        }
+      }
+      else {
+        $parent_element = &$build;
+      }
+
+      $form_key = $element['form_key'];
+      $new_element = &$parent_element[$form_key];
+      $references[$form_key] = &$new_element;
       switch ($element['type']) {
         case 'fieldset':
-          if ($multiPage && empty($current_page_title)) {
-            $current_page_title = $element['name'];
+          $new_element = [
+            '#type' => 'fieldset',
+            '#open' => TRUE,
+          ];
+          if ($multiPage && $parent_element['#type'] === 'webform_wizard_page' && empty($parent_element['#title'])) {
+            $parent_element['#title'] = $element['name'];
           }
-          $markup .= "$indent  '#type': fieldset\n$indent  '#open': true\n";
           break;
 
         case 'textfield':
-          $markup .= "$indent  '#type': textfield\n";
+          $new_element['#type'] = 'textfield';
           if (!empty($extra['width'])) {
-            $markup .= "$indent  '#size': " . $extra['size'] . "\n";
+            $new_element['#size'] = (int) $extra['width'];
           }
           break;
 
         case 'textarea':
-          $markup .= "$indent  '#type': textarea\n";
+          $new_element['#type'] = 'textarea';
           break;
 
         case 'select':
@@ -383,54 +411,84 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
           }
           elseif (!empty($extra['multiple']) && count($valid_options) == 1) {
             $select_type = 'checkbox';
-            list($key, $desc) = explode('|', $extra['items']);
-            $markup .= "$indent  '#description': \"" . $this->cleanString($desc) . "\"\n";
           }
           else {
             $select_type = 'radios';
           }
-          $markup .= "$indent  '#type': $select_type\n";
-          $markup .= "$indent  '#options':\n" . $options;
+
+          $new_element = [
+            '#type' => $select_type,
+            '#options' => $options,
+          ];
+
+          // If the component has the "other" option enabled via select_or_other
+          // module, use the corresponding type with "other" support.
+          if (!empty($extra['other_option'])) {
+            // Type "checkboxes" but not "checkbox" has an "other" version.
+            if ($new_element['#type'] === 'checkbox') {
+              $new_element['#type'] = 'checkboxes';
+            }
+            // Rename type to corresponding type with "other" option.
+            // Prefix 'webform_' is hidden in the UI.
+            $new_element['#type'] = 'webform_' . $new_element['#type'] . '_other';
+            // Add mandatory configuration.
+            $new_element['#other__counter_minimum'] = 1;
+            $new_element['#other__counter_maximum'] = 1;
+            // Copy option label if one is configured.
+            if (isset($extra['other_text']) && strlen($extra['other_text'])) {
+              $new_element['#other__option_label'] = $extra['other_text'];
+            }
+          }
+
           if (!empty($extra['multiple'])) {
-            $markup .= "$indent  '#multiple': true\n";
+            $new_element['#multiple'] = TRUE;
           }
           break;
 
         case 'email':
-          $markup .= "$indent  '#type': email\n$indent  '#size': 20\n";
+          $new_element = [
+            '#type' => 'email',
+            '#size' => 20,
+          ];
           break;
 
         case 'number':
-          if ($extra['type'] == 'select') {
-            $markup .= "$indent  '#type': select\n";
-            $markup .= "$indent  '#options':\n" . $options;
+          $extra['type'] ??= 'textfield';
+          if ($extra['type'] == 'textfield') {
+            $new_element = [
+              '#type' => 'textfield',
+              '#size' => 20,
+            ];
+          }
+          elseif ($extra['type'] == 'select') {
+            $new_element = [
+              '#type' => 'select',
+              '#options' => $options,
+            ];
+
             $min = $extra['min'];
             $max = $extra['max'];
             $step = !empty($extra['step']) ? $extra['step'] : 1;
             for ($value = $min; $value <= $max; $value += $step) {
-              $markup .= "$indent    " . $value . ": " . $value . "\n";
+              $new_element[$value] = $value;
             }
           }
-          else {
-            $markup .= "$indent  '#type': textfield\n$indent  '#size': 20\n";
-          }
-          if (isset($extra['min'])) {
-            $markup .= "$indent  '#min': " . $extra['min'] . "\n";
-          }
-          if (isset($extra['max'])) {
-            $markup .= "$indent  '#max': " . $extra['max'] . "\n";
-          }
-          if (isset($extra['step'])) {
-            $markup .= "$indent  '#step': " . $extra['step'] . "\n";
+          foreach (['min', 'max', 'step'] as $property) {
+            if (!empty($extra[$property])) {
+              $new_element["#{$property}"] = $extra[$property];
+            }
           }
           if (isset($extra['unique'])) {
-            $unique = ($extra['unique']) ? 'true' : 'false';
-            $markup .= "$indent  '#unique': " . $unique . "\n";
+            $new_element['#unique'] = (bool) $extra['unique'];
           }
           break;
 
         case 'markup':
-          $markup .= "$indent  '#type': processed_text\n$indent  '#format': full_html\n$indent  '#text': \"" . $this->cleanString($element['value']) . "\"\n";
+          $new_element = [
+            '#type' => 'processed_text',
+            '#format' => 'full_html',
+            '#text' => trim($element['value']),
+          ];
           $element['value'] = '';
           break;
 
@@ -461,130 +519,123 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
             $file_size = ($file_size < 1) ? 1 : $file_size;
           }
 
-          $markup .= "$indent  '#type': managed_file\n";
-          $markup .= "$indent  '#max_filesize': '$file_size'\n";
-          $markup .= "$indent  '#file_extensions': '$exts'\n";
+          $new_element = [
+            '#type' => 'managed_file',
+            '#max_filesize' => $file_size,
+            '#file_extensions' => $exts,
+          ];
 
           if (!empty($extra['width'])) {
-            $markup .= "$indent  '#size': " . $extra['width'] . "\n";
+            $new_element['#size'] = $extra['width'];
           }
-
           if ($element['type'] == 'multiple_file') {
-            $markup .= "$indent  '#multiple': true\n";
+            $new_element['#multiple'] = TRUE;
           }
           break;
 
         case 'date':
-          $markup .= "$indent  '#type': date\n";
-          /*if (!empty($element['value'])) {
-          $element['value'] = date('Y-m-d', strtotime($element['value']));
-          }*/
+          $new_element['#type'] = 'date';
           break;
 
         case 'time':
-          $markup .= "$indent  '#type': time\n";
+          $new_element['#type'] = 'webform_time';
+
           if (!empty($extra['hourformat'])) {
             if ($extra['hourformat'] == '12-hour') {
-              $markup .= "$indent  '#time_format': 'g:i A'\n";
+              $new_element['#time_format'] = 'g:i A';
             }
             elseif ($extra['hourformat'] == '24-hour') {
-              $markup .= "$indent  '#time_format': 'H:i'\n";
+              $new_element['#time_format'] = 'H:i';
             }
           }
-          /*if (!empty($element['value'])) {
-          $element['value'] = date('c', strtotime($element['value']));
-          }*/
+
+          if (!empty($extra['minuteincrements'])) {
+            // Setting expects seconds not minutes.
+            $step = (int) $extra['minuteincrements'] * 60;
+            $new_element['#step'] = $step;
+          }
           break;
 
         case 'hidden':
-          $markup .= "$indent  '#type': hidden\n";
+          $new_element['#type'] = 'hidden';
           break;
 
         case 'pagebreak':
-          $output = str_replace('{' . $current_page . '_title}', $current_page_title, $output);
-          $current_page = $element['form_key'];
-          $markup .= "$indent  '#type': webform_wizard_page\n  '#title': {" . $current_page . "_title}\n";
-          $current_page_title = $element['name'];
-          $pageCnt++;
+          $new_element = [
+            '#type' => 'webform_wizard_page',
+            '#title' => $element['name'],
+          ];
           break;
 
         case 'addressfield':
-          $markup .= "$indent  '#type': webform_address\n";
-          $markup .= "$indent  '#state_province__type': textfield\n";
+          $new_element['#type'] = 'webform_address';
+          $new_element['#state_province__type'] = 'textfield';
           break;
 
         case 'grid':
-          $questionsArray = $this->getItemsArray($extra['questions']);
-          $questions = $this->buildItemsString($questionsArray, $indent . '  ');
+          $questions = $this->getItemsArray($extra['questions']);
+          $new_element['#type'] = 'webform_likert';
+          $new_element['#questions'] = $questions;
+          $new_element['#answers'] = $this->getItemsArray($extra['options']);
 
-          $answersArray = $this->getItemsArray($extra['options']);
-          $answers = $this->buildItemsString($answersArray, $indent . '  ');
-
-          $markup .= "$indent  '#type': webform_likert\n";
-          $markup .= "$indent  '#questions':\n" . $questions . "\n";
-          $markup .= "$indent  '#answers':\n" . $answers . "\n";
+          if (!is_array($element['value'])) {
+            $questions_keys = array_keys($questions);
+            $element['value'] = array_fill_keys($questions_keys, $element['value']);
+          }
           break;
 
         default:
-          echo '';
+          // @todo We should make some notice if element type was not found.
+          break;
       }
 
       // Add common fields.
-      if (!empty(trim($element['value'])) && (empty($valid_options) || in_array($element['value'], $valid_options))) {
-        $markup .= "$indent  '#default_value': '" .
-          str_replace(['\'', "\n", "\r"], ['"', '\n', ''], trim($element['value'])) . "' \n";
+      if (is_array($element['value'])) {
+        $new_element['#default_value'] = $element['value'];
+      }
+      elseif (!empty(trim($element['value'])) && (empty($valid_options) || in_array($element['value'], $valid_options))) {
+        $new_element['#default_value'] = trim($element['value']);
       }
       if (!empty($extra['field_prefix'])) {
-        $markup .= "$indent  '#field_prefix': " . $extra['field_prefix'] . "\n";
+        $new_element['#field_prefix'] = $extra['field_prefix'];
       }
       if (!empty($extra['field_suffix'])) {
-        $markup .= "$indent  '#field_suffix': " . $extra['field_suffix'] . "\n";
+        $new_element['#field_suffix'] = $extra['field_suffix'];
       }
       if (!empty($extra['title_display']) && $extra['title_display'] != 'before') {
         $title_display = $extra['title_display'];
         if ($title_display == 'none') {
           $title_display = 'invisible';
         }
-        $markup .= "$indent  '#title_display': " . $title_display . "\n";
+        $new_element['#title_display'] = $title_display;
       }
       if ($element['type'] != 'pagebreak') {
-        $markup .= "$indent  '#title': '" . str_replace('\'', '"', $element['name']) . "' \n";
-        $markup .= "$indent  '#description': \"" . $description . "\"\n";
-      }
-      if (!empty($element['required'])) {
-        $markup .= "$indent  '#required': true\n";
-      }
+        $new_element['#title'] = $element['name'];
 
-      // Build contionals.
-      if ($states = $this->buildConditionals($element, $elements)) {
-        $markup .= "$indent  '#states':\n";
-        foreach ($states as $key => $values) {
-          $markup .= "$indent    $key:\n";
-          foreach ($values as $value) {
-            foreach ($value as $name => $item) {
-              $markup .= "$indent      " . Yaml::dump($name, 2, 2) . ":\n";
-              foreach (explode("\n", Yaml::dump($item, 2, 2)) as $line) {
-                $markup .= "$indent        " . $line . "\n";
-              }
-            }
-          }
+        // The description key can be missing (since description is optional and
+        // it isn't saved by Drupal 7 webform when it is left empty).
+        if (!empty($extra['description'])) {
+          $new_element['#description'] = $extra['description'];
         }
       }
+      if (!empty($element['required'])) {
+        $new_element['#required'] = TRUE;
+      }
 
-      $output .= $markup;
+      // Attach conditionals as Drupal #states.
+      if ($states = $this->buildConditionals($element, $elements)) {
+        $new_element['#states'] = $states;
+      }
     }
 
-    if ($multiPage) {
-      // Replace the final page title.
-      $output = str_replace('{' . $current_page . '_title}', $current_page_title, $output);
-    }
+    $output = WebformYaml::encode($build);
     return ['elements' => $output, 'xref' => $xref];
   }
 
   /**
    * Build conditionals and translate them to states api in D8.
    */
-  private function buildConditionals($element, $elements) {
+  protected function buildConditionals($element, $elements) {
     $nid = $element['nid'];
     $cid = $element['cid'];
     $extra = unserialize($element['extra']);
@@ -638,9 +689,24 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
         $operator_value = $condition['value'];
         $depedent = $elements[$condition['source']];
         $depedent_extra = unserialize($depedent['extra']);
-        $depedent_extra['items'] = explode("\n", $depedent_extra['items']);
+        $depedent_extra['items'] = !empty($depedent_extra['items']) ? explode("\n", $depedent_extra['items']) : [];
+        $depedent_extra += [
+          'aslist' => NULL,
+          'multiple' => NULL,
+        ];
+        // Element condition must be an array in Drupal 8|9 Webform.
+        $element_condition = [];
 
         switch ($condition['operator']) {
+          case 'contains':
+            $element_trigger = $condition['invert'] ? '!pattern' : 'pattern';
+            $element_condition = ['value' => [$element_trigger => $operator_value]];
+            // Specially handle the checkboxes.
+            if ($depedent['type'] == 'select' && !$depedent_extra['aslist'] && $depedent_extra['multiple']) {
+              $element_condition = ['checked' => !empty($condition['invert'])];
+            }
+            break;
+
           case 'equal':
             $element_condition = ['value' => $operator_value];
             if ($depedent['type'] == 'select' && !$depedent_extra['aslist'] && $depedent_extra['multiple']) {
@@ -719,7 +785,7 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
   /**
    * Build email handlers from webform emails table.
    */
-  private function buildEmailHandlers($nid, $xref) {
+  protected function buildEmailHandlers($nid, $xref) {
 
     $query = $this->select('webform_emails', 'we');
     $query->fields('we', [
@@ -777,7 +843,7 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
   /**
    * Build access table from webform roles table.
    */
-  private function buildAccessTable($nid) {
+  protected function buildAccessTable($nid) {
 
     $query = $this->select('webform_roles', 'wr');
     $query->innerJoin('role', 'r', 'wr.rid=r.rid');
@@ -786,9 +852,9 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
       'rid',
     ])
       ->fields('r', [
-        'name',
-      ]
-    );
+          'name',
+        ]
+      );
     $wf_roles = $query->condition('nid', $nid)->execute();
 
     $roles = [];
@@ -851,14 +917,14 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
    * Safe values are available to all users and unsafe values
    * should only be shown to authenticated users.
    */
-  private function replaceTokens($str) {
+  protected function replaceTokens($str) {
     return $str;
   }
 
   /**
    * {@inheritdoc}
    */
-  private function cleanString($str) {
+  protected function cleanString($str) {
     return str_replace(['"', "\n", "\r"], ["'", '\n', ''], $str);
   }
 
@@ -961,15 +1027,38 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
     }
   }
 
+  /**
+   * @todo Add documentation.
+   *
+   * @param string $rawString
+   *   @todo Add documentation.
+   *
+   * @return array
+   *   @todo Add documentation.
+   */
   protected function getItemsArray($rawString) {
+    $result = [];
     $items = explode("\n", $rawString);
     $items = array_map('trim', $items);
-    return array_map(function ($item) {
-      return explode('|', $item);
-    }, $items);
+    foreach ($items as $item) {
+      [$key, $value] = explode('|', $item);
+      $result[$key] = $value;
+    }
+    return $result;
   }
 
-  protected function buildItemsString($itemsArray, $baseIndent = '') {
+  /**
+   * @todo Add documentation.
+   *
+   * @param array $itemsArray
+   *   @todo Add documentation.
+   * @param string $baseIndent
+   *   @todo Add documentation.
+   *
+   * @return string
+   *   @todo Add documentation.
+   */
+  protected function buildItemsString(array $itemsArray, $baseIndent = '') {
     $preparedItems = array_map(function ($item) use ($baseIndent) {
       return $baseIndent . '  ' . $this->encapsulateString($item[0]) . ': ' . $this->encapsulateString($item[1]);
     }, $itemsArray);
@@ -977,6 +1066,15 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
     return implode("\n", $preparedItems);
   }
 
+  /**
+   * @todo Add documentation.
+   *
+   * @param string $string
+   *   @todo Add documentation.
+   *
+   * @return string
+   *   @todo Add documentation.
+   */
   protected function encapsulateString($string) {
     return sprintf("'%s'", addslashes($string));
   }
