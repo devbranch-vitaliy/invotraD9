@@ -1,6 +1,6 @@
 name: 'Invotra Webform'
 type: module
-description: 'Functionality common for webforms on Invotra'
+description: 'Functionality common for webforms on Invotra. The migration plugins based on Webform Migrate module.'
 core_version_requirement: ^8.8 || ^9
 package: 'Invotra'
 dependencies:
