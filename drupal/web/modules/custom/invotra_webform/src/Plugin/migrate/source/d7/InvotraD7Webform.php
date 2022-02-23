@@ -319,7 +319,7 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
       }
       $indent = str_repeat(' ', $element['depth'] * 2);
       $extra = unserialize($element['extra']);
-      $description = $this->cleanString($extra['description']);
+      $description = $this->cleanString($extra['description'] ?? '');
 
       // Create an option list if there are items for this element.
       $options = '';
@@ -401,6 +401,7 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
           break;
 
         case 'number':
+          $extra['type'] ??= 'testfield';
           if ($extra['type'] == 'textfield') {
             $markup .= "$indent  '#type': textfield\n$indent  '#size': 20\n";
           }
@@ -531,7 +532,8 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
 
       // Add common fields.
       if (!empty(trim($element['value'])) && (empty($valid_options) || in_array($element['value'], $valid_options))) {
-        $markup .= "$indent  '#default_value': '" . str_replace(array('\'', "\n", "\r"), array('"', '\n', ''), trim($element['value'])) . "' \n";
+        $markup .= "$indent  '#default_value': '" .
+          str_replace(['\'', "\n", "\r"], ['"', '\n', ''], trim($element['value'])) . "' \n";
       }
       if (!empty($extra['field_prefix'])) {
         $markup .= "$indent  '#field_prefix': " . $extra['field_prefix'] . "\n";
@@ -963,13 +965,13 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
   protected function getItemsArray($rawString) {
     $items = explode("\n", $rawString);
     $items = array_map('trim', $items);
-    return array_map(function($item) {
+    return array_map(function ($item) {
       return explode('|', $item);
     }, $items);
   }
 
   protected function buildItemsString($itemsArray, $baseIndent = '') {
-    $preparedItems = array_map(function($item) use ($baseIndent) {
+    $preparedItems = array_map(function ($item) use ($baseIndent) {
       return $baseIndent . '  ' . $this->encapsulateString($item[0]) . ': ' . $this->encapsulateString($item[1]);
     }, $itemsArray);
 
