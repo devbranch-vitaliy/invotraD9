@@ -74,7 +74,7 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
     $submitted_data = $this->buildSubmittedData($sid);
     $row->setSourceProperty('webform_id', $this->getWebformId($nid, $machine_name));
     $row->setSourceProperty('webform_data', $submitted_data);
-    $row->setSourceProperty('webform_uri', '/form/webform-' . $nid);
+    $row->setSourceProperty('webform_uri', '/node/' . $nid);
     return parent::prepareRow($row);
   }
 
@@ -118,7 +118,7 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
   /**
    * Build submitted data from webform submitted data table.
    */
-  private function buildSubmittedData($sid) {
+  protected function buildSubmittedData($sid) {
     $query = $this->select('webform_submitted_data', 'wfsd');
     $query->innerJoin('webform_component', 'wc', 'wc.nid=wfsd.nid AND wc.cid=wfsd.cid');
 
@@ -129,20 +129,30 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
       ->fields('wc', [
         'form_key',
         'extra',
+        'type',
+        'pid',
       ]);
     $wf_submissions = $query->condition('sid', $sid)->execute();
 
     $submitted_data = [];
     foreach ($wf_submissions as $wf_submission) {
       $extra = unserialize($wf_submission['extra']);
-      if (!empty($extra['multiple']) && !empty($wf_submission['data'])) {
+      // Nested form values will get their parent form item's ID as suffix, so
+      // the source and the destination form keys are not always equal.
+      $src_form_key = $wf_submission['form_key'];
+      $destination_form_key = $wf_submission['pid'] ? "{$src_form_key}_{$wf_submission['pid']}" : $src_form_key;
+      $is_multiple = !empty($extra['multiple']) || $wf_submission['type'] === 'grid';
+
+      $item = $is_multiple
+        ? $submitted_data[$destination_form_key] ?? []
+        : $wf_submission['data'];
+
+      if ($is_multiple && !empty($wf_submission['data'])) {
         $item[$wf_submission['no']] = $wf_submission['data'];
       }
-      else {
-        $item = $wf_submission['data'];
-      }
+
       if (!empty($item)) {
-        $submitted_data[$wf_submission['form_key']] = $item;
+        $submitted_data[$destination_form_key] = $item;
       }
     }
     return $submitted_data;
