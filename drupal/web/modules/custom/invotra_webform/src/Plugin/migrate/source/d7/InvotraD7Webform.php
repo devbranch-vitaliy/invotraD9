@@ -396,6 +396,9 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
           if (!empty($extra['width'])) {
             $new_element['#size'] = (int) $extra['width'];
           }
+          if (isset($extra['unique'])) {
+            $new_element['#unique'] = (bool) $extra['unique'];
+          }
           break;
 
         case 'textarea':
@@ -442,6 +445,10 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
 
           if (!empty($extra['multiple'])) {
             $new_element['#multiple'] = TRUE;
+
+            if (!empty($element['value'])) {
+              $element['value'] = $this->getItemsArray($element['value']);
+            }
           }
           break;
 
@@ -450,6 +457,16 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
             '#type' => 'email',
             '#size' => 20,
           ];
+          if (isset($extra['unique'])) {
+            $new_element['#unique'] = (bool) $extra['unique'];
+          }
+          if (!empty($extra['multiple'])) {
+            $new_element['#multiple'] = TRUE;
+
+            if (!empty($element['value'])) {
+              $element['value'] = $this->getItemsArray($element['value']);
+            }
+          }
           break;
 
         case 'number':
@@ -535,6 +552,12 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
 
         case 'date':
           $new_element['#type'] = 'date';
+          if (!empty($extra['start_date'])) {
+            $new_element['#date_date_min'] = $extra['start_date'];
+          }
+          if (!empty($extra['end_date'])) {
+            $new_element['#date_date_max'] = $extra['end_date'];
+          }
           break;
 
         case 'time':
@@ -573,10 +596,10 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
           break;
 
         case 'grid':
-          $questions = $this->getItemsArray($extra['questions']);
+          $questions = $this->getItemsArray($extra['questions'], "\n", '|');
           $new_element['#type'] = 'webform_likert';
           $new_element['#questions'] = $questions;
-          $new_element['#answers'] = $this->getItemsArray($extra['options']);
+          $new_element['#answers'] = $this->getItemsArray($extra['options'], "\n", '|');
 
           if (!is_array($element['value'])) {
             $questions_keys = array_keys($questions);
@@ -1028,23 +1051,31 @@ class InvotraD7Webform extends DrupalSqlBase implements ImportAwareInterface, Ro
   }
 
   /**
-   * @todo Add documentation.
+   * Made an array with values(keys and values) from the string.
    *
    * @param string $rawString
-   *   @todo Add documentation.
+   *   The text to split.
+   * @param string $separator
+   *   The boundary string. Default value is a comma.
+   * @param string|null $separator_extra
+   *   The boundary string. Uses when needs to split the text twice.
+   *   The second split will create the key and the value of the array.
    *
    * @return array
-   *   @todo Add documentation.
+   *   The result of the splitting.
    */
-  protected function getItemsArray($rawString) {
-    $result = [];
-    $items = explode("\n", $rawString);
+  protected function getItemsArray(string $rawString, string $separator = ',', ?string $separator_extra = NULL): array {
+    $items = explode($separator, $rawString);
     $items = array_map('trim', $items);
-    foreach ($items as $item) {
-      [$key, $value] = explode('|', $item);
-      $result[$key] = $value;
+    if ($separator_extra) {
+      $result = [];
+      foreach ($items as $item) {
+        [$key, $value] = explode($separator_extra, $item);
+        $result[$key] = $value;
+      }
+      $items = $result;
     }
-    return $result;
+    return $items;
   }
 
   /**
