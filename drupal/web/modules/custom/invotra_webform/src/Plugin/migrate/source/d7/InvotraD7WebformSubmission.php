@@ -167,7 +167,10 @@ class InvotraD7WebformSubmission extends DrupalSqlBase implements ImportAwareInt
    * {@inheritdoc}
    */
   public function postImport(MigrateImportEvent $event) {
-    $webform_count_tables = ['idea' => 'invotra_ideas_reference', 'query' => 'invotra_queries_reference'];
+    $webform_count_tables = [
+      'idea' => 'invotra_ideas_reference',
+      'query' => 'invotra_queries_reference',
+    ];
     foreach ($webform_count_tables as $webform_id => $count_table) {
       // Retrieve webform by ID.
       if (!($webform = Webform::load($webform_id))) {
