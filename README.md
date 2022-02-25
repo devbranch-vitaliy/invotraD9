@@ -25,9 +25,9 @@ Databases:
 5. Raise a new build  - `docker-compose up -d`
 6. If this is the first run, wait a couple of minutes for the databases (especially D7 DB) to load.
 7. Check the site is working and databases have been loaded
-   * Site - `http://invotra_d9.docker.localhost:99`
-   * D7 database - `http://adminer_d7.invotra_d9.docker.localhost:99`
-   * D9 database - `http://adminer.invotra_d9.docker.localhost:99/`
+   * Site - [http://invotra_d9.docker.localhost:99](http://invotra_d9.docker.localhost:99)
+   * D7 database - [http://adminer_d7.invotra_d9.docker.localhost:99](http://adminer_d7.invotra_d9.docker.localhost:99)
+   * D9 database - [http://adminer.invotra_d9.docker.localhost:99](http://adminer.invotra_d9.docker.localhost:99)
 
 ## To check the migrated webforms
 1. Go to the project directory via terminal
@@ -35,7 +35,7 @@ Databases:
    `cp {path to the DB}/invotraD9-MigratedData.sql docker/mariadb-init/Drupal9/`
 3. Go to docker dir via terminal - `cd docker/`
 4. Raise a new build  - `docker-compose up -d`
-5. Enjoy - `http://invotra_d9.docker.localhost:99`
+5. Enjoy - [http://invotra_d9.docker.localhost:99](http://invotra_d9.docker.localhost:99)
 
 # Users
 
