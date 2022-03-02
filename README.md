@@ -24,7 +24,9 @@ Databases:
 4. Go to docker dir via terminal - `cd docker/`
 5. Raise a new build  - `docker-compose up -d`
 6. If this is the first run, wait a couple of minutes for the databases (especially D7 DB) to load.
-7. Check the site is working and databases have been loaded
+7. Connect to the [php container](#drush_composer) and install the Drupal site - `composer install`
+8. Clear the cache - `drush cr`
+9. Check the site is working and databases have been loaded
    * Site - [http://invotra_d9.docker.localhost:99](http://invotra_d9.docker.localhost:99)
    * D7 database - [http://adminer_d7.invotra_d9.docker.localhost:99](http://adminer_d7.invotra_d9.docker.localhost:99)
    * D9 database - [http://adminer.invotra_d9.docker.localhost:99](http://adminer.invotra_d9.docker.localhost:99)
@@ -35,7 +37,9 @@ Databases:
    `cp {path to the DB}/invotraD9-MigratedData.sql docker/mariadb-init/Drupal9/`
 3. Go to docker dir via terminal - `cd docker/`
 4. Raise a new build  - `docker-compose up -d`
-5. Enjoy - [http://invotra_d9.docker.localhost:99](http://invotra_d9.docker.localhost:99)
+5. Connect to the [php container](#drush_composer) and install the Drupal site - `composer install`
+6. Clear the cache - `drush cr`
+7. Enjoy - [http://invotra_d9.docker.localhost:99](http://invotra_d9.docker.localhost:99)
 
 # Users
 
@@ -59,9 +63,9 @@ There ais a folder with custom configs to migrate webforms with all relationship
 ideas, queries, the `field_submission` field that makes the relationship between the node and the submissions, etc.
 These configs located in the `docker/templates/migrate_configs`.
 
-### Drush
+### Drush/Composer
 
-Recommended to use the drush from the php container - `docker-compose exec php bash`
+Recommended to use the drush/composer from the php container - `docker-compose exec php bash`
 
 ### Migrate Data
 
